@@ -7,10 +7,9 @@ import pyautogui as gui
 import time
 from glob import glob
 from pathlib import Path
-from datetime import date
+from datetime import date, timedelta
 from win32com import client
 from openpyxl import load_workbook
-from dateutil.relativedelta import relativedelta
 
 todays_date = date.today()
 user = os.getlogin()
@@ -24,7 +23,6 @@ logging.basicConfig(
 logger = logging.getLogger()
 logger.info(f'PROGRAM STARTED BY {user}.')
 
-# PATHS
 
 # Path to template file that will be written to
 mk32_template_folder_path = Path(
@@ -50,17 +48,15 @@ report_output_path = Path(
 
 fds_path = r"C:\Users\grane\Desktop\mk32_EDD_EFT Report\FDS//"
 
-# report_excel_archive = r'C:\Users\grane\Desktop\mk32_EDD_EFT Report\Output\Excel Archive//'
+report_excel_archive = r'C:\Users\grane\Desktop\mk32_EDD_EFT Report\Output\Excel Archive//'
 
 
 def get_monday(todays_date):
     """Finds the Monday of the current week. Required to select the correct files"""
     day_index = todays_date.weekday()
-    if todays_date.weekday() != 0:
-        report_date = todays_date + relativedelta(days=- day_index)
-        return report_date
-    else:
-        return todays_date
+    monday = todays_date if day_index == 0 else todays_date - \
+        timedelta(day=day_index)
+    return monday
 
 
 def convert_csm_to_temp(path_to_file, destination_path):
@@ -153,7 +149,6 @@ def main():
     csm_mk32_worksheet = mk32_template['CSM']
     mk30_mk32_worksheet = mk32_template['PIF']
     maxim_mk32_worksheet = mk32_template['MAX_EFT']
-    percentages_mk32_worksheet = mk32_template['Percentages']
 
     # Load all current workbooks
     start = time.perf_counter()
@@ -239,44 +234,43 @@ def main():
 
     os.remove(temp_csm_file)
 
-    """Never save over the template!"""
+    # Never save over the template!
     new_report_name = f'MK32_EDD_EFT Report_{csm.monday_date}'
     new_xl_path = f'{report_output_path}\\{new_report_name}.xlsx'
     mk32_template.save(new_xl_path)
     new_report_path = f'{report_output_path}\\{new_report_name}'
 
-    """Create a PDF of the PIF and Percentages worksheets"""
+    '''Create a PDF of the PIF and Percentages worksheets.'''
     try:
-        xlApp = client.Dispatch("Excel.Application")
+        xl_wb = client.Dispatch("Excel.Application")
 
-        report_wb = xlApp.Workbooks.Open(new_xl_path)
+        report_wb = xl_wb.Workbooks.Open(new_xl_path)
 
         report_wb.Worksheets(["PIF", "Percentages"]).Select()
 
-        xlTypePDF = 0
-        xlQualityStandard = 0
+        xl_type_pdf = 0
+        xl_quality_standard = 0
 
-        xlApp.ActiveSheet.ExportAsFixedFormat(xlTypePDF,
+        xl_wb.ActiveSheet.ExportAsFixedFormat(xl_type_pdf,
                                               os.path.join(
                                                   report_output_path, new_report_name),
-                                              xlQualityStandard, True, True)
+                                              xl_quality_standard, True, True)
 
     except Exception as e:
-        # gui.alert('PDF Failed To Process.\nPlease manually create PDF.')
-        gui.alert(e)
+        gui.alert(f'''The PDF was unable to be created.
+        Reason: {e}''')
+        # gui.alert(e)
 
     finally:
-
         report_wb.Close(SaveChanges=False)
-        xlApp.Quit
+        xl_wb.Quit
 
         report_wb = None
-        xlApp = None
+        xl_wb = None
 
     logger.info('PROGRAM FINISHED.')
 
-    # shutil.copyfile(f"{report_output_path}\\{new_report_name}.pdf",
-    #                 r"C:\Users\grane\Desktop\mk32_EDD_EFT Report\FDS")
+    # A copy of the PDF must be distributed via FDS.
     move_pdf(new_report_path, fds_path)
 
 
