@@ -119,6 +119,11 @@ class FilePath:
             return ''
 
     def date_string(self):
+        """Takes the file_format() and creates a date string for file_selection().
+
+        Returns:
+            string: matches the required date format for specific file types.
+        """        
         string = f'{self.year}{self.file_format()}{self.month}{self.file_format()}{self.day}'
         return string
 
