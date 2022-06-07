@@ -52,7 +52,14 @@ report_excel_archive = r'C:\Users\grane\Desktop\mk32_EDD_EFT Report\Output\Excel
 
 
 def get_monday(todays_date):
-    """Finds the Monday of the current week. Required to select the correct files"""
+    """Finds the date for Monday of the current week.
+
+    Args:
+        todays_date (datetime object): Used to index the day of the current week.
+
+    Returns:
+        datetime object: Monday's date for the current week, YYYY-MM-DD.
+    """
     day_index = todays_date.weekday()
     monday = todays_date if day_index == 0 else todays_date - \
         timedelta(day=day_index)
@@ -123,7 +130,7 @@ class FilePath:
 
         Returns:
             string: matches the required date format for specific file types.
-        """        
+        """
         string = f'{self.year}{self.file_format()}{self.month}{self.file_format()}{self.day}'
         return string
 
