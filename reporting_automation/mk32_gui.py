@@ -41,7 +41,6 @@ layout = [
 
 window = sg.Window(title='MK32 Automation', layout=layout)
 
-print(csm)
 
 # def main():
 #     t1 = threading.Thread(target=mk32_app.main)
