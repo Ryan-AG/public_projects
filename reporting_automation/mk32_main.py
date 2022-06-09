@@ -1,5 +1,4 @@
 import os
-import sys
 import time
 import shutil
 import logging
@@ -9,11 +8,16 @@ from pathlib import Path
 from win32com import client
 from openpyxl import load_workbook
 from datetime import date, timedelta
+import pyautogui as gui
+import concurrent.futures
+import threading
 
 todays_date = date.today()
 user = os.getlogin()
 
 # Path to template file that will be written to.
+
+
 mk32_template_folder_path = Path(
     r'C:\Users\grane\Desktop\mk32_EDD_EFT Report\MK32_Report_Template.xlsx')
 
@@ -146,29 +150,34 @@ def main():
     )
 
     # Load destination workbook and worksheets that will be written to.
-    mk32_template = load_workbook(mk32_template_folder_path)
+    # mk32_template = load_workbook(mk32_template_folder_path)
+
+    # Using threads to load workbooks
+    with concurrent.futures.ThreadPoolExecutor() as executer:
+
+        mk32_template_object = executer.submit(
+            load_workbook, mk32_template_folder_path
+        )
+        csm_object = executer.submit(
+            load_workbook, temp_csm_file
+        )
+        mk30_object = executer.submit(
+            load_workbook, mk30.file_selection()
+        )
+        maxim_object = executer.submit(
+            load_workbook, maxim.file_selection()
+        )
+
+    # Threads return a thread object, pull result (openpyxl object) into a new variable
+    mk32_template = mk32_template_object.result()
+    csm_workbook = csm_object.result()
+    mk30_workbook = mk30_object.result()
+    maxim_workbook = maxim_object.result()
+
+    # Load all destination worksheets
     csm_mk32_worksheet = mk32_template['CSM']
     mk30_mk32_worksheet = mk32_template['PIF']
     maxim_mk32_worksheet = mk32_template['MAX_EFT']
-
-    # Load all current workbooks
-    start = time.perf_counter()
-    csm_workbook = load_workbook(temp_csm_file)
-    finish = time.perf_counter()
-    logger.debug(
-        f"csm_workbook successfully loaded in {round(finish-start, 2)} second(s).")
-
-    start = time.perf_counter()
-    mk30_workbook = load_workbook(mk30.file_selection())
-    finish = time.perf_counter()
-    logger.debug(
-        f"mk30_workbook successfully loaded in {round(finish-start, 2)} second(s).")
-
-    start = time.perf_counter()
-    maxim_workbook = load_workbook(maxim.file_selection())
-    finish = time.perf_counter()
-    logger.debug(
-        f"maxim_workbook successfully loaded in {round(finish-start, 2)} second(s).")
 
     # Load all current worksheets
     csm_wb_worksheet = csm_workbook.worksheets[0]
@@ -185,44 +194,19 @@ def main():
     maxim_max_row = maxim_wb_worksheet.max_row
     maxim_max_col = maxim_wb_worksheet.max_column
 
-    # Transfer all data to template
-    start = time.perf_counter()
-    transfer_data(
-        csm_wb_worksheet,
-        csm_mk32_worksheet,
-        csm_max_row,
-        csm_max_col,
-        "csm"
-    )
-    finish = time.perf_counter()
-    logger.debug(
-        f"transfer_data(csm) finished in {round(finish-start,2)} second(s)")
+    # Lists created to feed thread map()
+    orig_wb_list = [csm_wb_worksheet, mk30_wb_worksheet, maxim_wb_worksheet]
+    dest_wb_list = [csm_mk32_worksheet,
+                    mk30_mk32_worksheet, maxim_mk32_worksheet]
+    max_row_list = [csm_max_row, mk30_max_row, maxim_max_row]
+    max_col_list = [csm_max_col, mk30_max_col, maxim_max_col]
+    report_type_list = ['csm', 'mk30', 'maxim']
 
-    start = time.perf_counter()
-    transfer_data(
-        mk30_wb_worksheet,
-        mk30_mk32_worksheet,
-        mk30_max_row,
-        mk30_max_col,
-        report="mk30"
-    )
-    finish = time.perf_counter()
-    logger.debug(
-        f"transfer_data(mk30) finished in {round(finish-start,2)} second(s)")
+    # Using threads to transfer data
+    with concurrent.futures.ThreadPoolExecutor() as executer:
+        executer.map(transfer_data, orig_wb_list, dest_wb_list,
+                     max_row_list, max_col_list, report_type_list)
 
-    start = time.perf_counter()
-    transfer_data(
-        maxim_wb_worksheet,
-        maxim_mk32_worksheet,
-        maxim_max_row,
-        maxim_max_col,
-        "maxim"
-    )
-    finish = time.perf_counter()
-    logger.debug(
-        f"transfer_data(maxim) finished in {round(finish-start,2)} second(s)")
-
-    # Change the report date and generation date on the PIF worksheet
     mk30_mk32_worksheet.cell(
         row=1, column=3).value = todays_date.strftime("%m/%d/%Y")
     mk30_mk32_worksheet.cell(
