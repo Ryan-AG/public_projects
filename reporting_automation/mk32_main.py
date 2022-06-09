@@ -10,7 +10,6 @@ from openpyxl import load_workbook
 from datetime import date, timedelta
 import pyautogui as gui
 import concurrent.futures
-import threading
 
 todays_date = date.today()
 user = os.getlogin()
