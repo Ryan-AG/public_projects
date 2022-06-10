@@ -14,33 +14,18 @@ import concurrent.futures
 todays_date = date.today()
 user = os.getlogin()
 
-# Path to template file that will be written to.
+path_dict = {
+    'mk32_template_folder_path': Path(r'C:\Users\grane\Desktop\mk32_EDD_EFT Report\MK32_Report_Template.xlsx'),
+    'customer_center_folder_path': Path(r'C:\Users\grane\Desktop\mk32_EDD_EFT Report\Customer Center//'),
+    'maxim_report_folder_path': Path(r'C:\Users\grane\Desktop\mk32_EDD_EFT Report\MaximRecurringEFT report//'),
+    'temp_csm_file_name': Path('temp_csm_file.xlsx'),
+    'csm_temp_folder_path': Path(r'C:\Users\grane\Desktop\mk32_EDD_EFT Report\temp_c3_folder//'),
+    'report_output_path': Path(r'C:\Users\grane\Desktop\mk32_EDD_EFT Report\Output//'),
+    'fds_path': Path(r"C:\Users\grane\Desktop\mk32_EDD_EFT Report\FDS//"),
+}
 
-
-mk32_template_folder_path = Path(
-    r'C:\Users\grane\Desktop\mk32_EDD_EFT Report\MK32_Report_Template.xlsx')
-
-# This folder houses both MK30 and CSM001 reports.
-customer_center_folder_path = Path(
-    r'C:\Users\grane\Desktop\mk32_EDD_EFT Report\Customer Center//')
-
-maxim_report_folder_path = Path(
-    r'C:\Users\grane\Desktop\mk32_EDD_EFT Report\MaximRecurringEFT report//')
-
-# The temp_csm_file file will be used instead of the csv file and deleted at the end if this script.
-temp_csm_file_name = Path('temp_csm_file.xlsx')
-
-csm_temp_folder_path = Path(
-    r'C:\Users\grane\Desktop\mk32_EDD_EFT Report\temp_c3_folder//')
-
-temp_csm_file = Path(f'{csm_temp_folder_path}\{temp_csm_file_name}')
-
-report_output_path = Path(
-    r'C:\Users\grane\Desktop\mk32_EDD_EFT Report\Output//')
-
-fds_path = r"C:\Users\grane\Desktop\mk32_EDD_EFT Report\FDS//"
-
-report_excel_archive = r'C:\Users\grane\Desktop\mk32_EDD_EFT Report\Output\Excel Archive//'
+temp_csm_file = Path(
+    f"{path_dict['csm_temp_folder_path']}\{path_dict['temp_csm_file_name']}")
 
 
 LOG_FORMAT = "%(levelname)s:%(asctime)s:%(message)s"
@@ -64,8 +49,8 @@ def get_monday(todays_date: object):
 def convert_csm_to_temp(path_to_file, destination_path):
     """Converts csv file to xlsx for simplicity later"""
 
-    if not os.path.exists(csm_temp_folder_path):
-        os.mkdir(csm_temp_folder_path)
+    if not os.path.exists(path_dict['csm_temp_folder_path']):
+        os.mkdir(path_dict['csm_temp_folder_path'])
     else:
         pass
     read_file = pd.read_csv(path_to_file)
@@ -139,9 +124,12 @@ def main():
     logger.info(f'PROGRAM STARTED BY {user}.')
 
     # Set path objects for load_workbook() to pull in file.
-    csm = FilePath(customer_center_folder_path, todays_date, 'csm')
-    maxim = FilePath(maxim_report_folder_path, todays_date, 'maxim')
-    mk30 = FilePath(customer_center_folder_path, todays_date, 'mk30')
+    csm = FilePath(
+        path_dict['customer_center_folder_path'], todays_date, 'csm')
+    maxim = FilePath(
+        path_dict['maxim_report_folder_path'], todays_date, 'maxim')
+    mk30 = FilePath(
+        path_dict['customer_center_folder_path'], todays_date, 'mk30')
 
     convert_csm_to_temp(
         csm.file_selection(),
@@ -155,7 +143,7 @@ def main():
     with concurrent.futures.ThreadPoolExecutor() as executer:
 
         mk32_template_object = executer.submit(
-            load_workbook, mk32_template_folder_path
+            load_workbook, path_dict['mk32_template_folder_path']
         )
         csm_object = executer.submit(
             load_workbook, temp_csm_file
@@ -220,9 +208,9 @@ def main():
 
     # Never save over the template!
     new_report_name = f'MK32_EDD_EFT Report_{csm.monday_date}'
-    new_xl_path = f'{report_output_path}\\{new_report_name}.xlsx'
+    new_xl_path = f'{path_dict["report_output_path"]}\\{new_report_name}.xlsx'
     mk32_template.save(new_xl_path)
-    new_report_path = f'{report_output_path}\\{new_report_name}'
+    new_report_path = f'{path_dict["report_output_path"]}\\{new_report_name}'
 
     '''Create a PDF of the PIF and Percentages worksheets.'''
     try:
@@ -237,7 +225,7 @@ def main():
 
         xl_wb.ActiveSheet.ExportAsFixedFormat(xl_type_pdf,
                                               os.path.join(
-                                                  report_output_path, new_report_name),
+                                                  path_dict['report_output_path'], new_report_name),
                                               xl_quality_standard, True, True)
 
     except Exception as e:
@@ -255,7 +243,7 @@ def main():
     logger.info('PROGRAM FINISHED.')
 
     # A copy of the PDF must be distributed via FDS.
-    move_pdf(new_report_path, fds_path)
+    move_pdf(new_report_path, path_dict['fds_path'])
 
 
 if __name__ == '__main__':
