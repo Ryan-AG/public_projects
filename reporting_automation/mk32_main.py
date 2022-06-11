@@ -12,7 +12,6 @@ import pyautogui as gui
 import concurrent.futures
 
 todays_date = date.today()
-user = os.getlogin()
 
 path_dict = {
     'mk32_template_folder_path': Path(r'C:\Users\grane\Desktop\mk32_EDD_EFT Report\MK32_Report_Template.xlsx'),
@@ -80,8 +79,8 @@ def find_max(worksheet):
     return rows, columns
 
 
-def close_workbooks(workbook1, workbook2, workbook3, workbook4):
-    workbook = [workbook1, workbook2, workbook3, workbook4]
+def close_workbooks(*args):
+    workbook = [*args]
     for book in workbook:
         book.close()
 
@@ -132,7 +131,7 @@ class FilePath:
 
 def main():
 
-    logger.info(f'PROGRAM STARTED BY {user}.')
+    logger.info(f'PROGRAM STARTED BY {os.getlogin()}.')
 
     # Set path objects for load_workbook() to pull in file.
     csm = FilePath(
