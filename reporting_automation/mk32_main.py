@@ -1,5 +1,5 @@
 import os
-import time
+import sys
 import shutil
 import logging
 import pandas as pd
@@ -51,10 +51,15 @@ def convert_csm_to_temp(path_to_file, destination_path):
 
     if not os.path.exists(path_dict['csm_temp_folder_path']):
         os.mkdir(path_dict['csm_temp_folder_path'])
+    try:
+        logger.debug('Converting CSM file...')
+        read_file = pd.read_csv(path_to_file)
+        read_file.to_excel(destination_path, index=False, header=True)
+    except FileNotFoundError as e:
+        logger.error(e)
+        sys.exit('CSM file could not be converted.')
     else:
-        pass
-    read_file = pd.read_csv(path_to_file)
-    read_file.to_excel(destination_path, index=False, header=True)
+        logger.debug("CSM file was successfully converted")
 
 
 def transfer_data(original_worksheet, destination_worksheet, max_row, max_col, report):
@@ -62,17 +67,23 @@ def transfer_data(original_worksheet, destination_worksheet, max_row, max_col, r
 
     # * MK30 transfer must begin at row 8 to avoid clashing with the template
     start = 8 if report.upper() == "MK30" else 1
-    for i in range(start, max_row + 1):
-        for j in range(1, max_col + 1):
-            cell_value = original_worksheet.cell(row=i, column=j)
+    for row in range(start, max_row + 1):
+        for column in range(1, max_col + 1):
+            cell_value = original_worksheet.cell(row=row, column=column)
             destination_worksheet.cell(
-                row=i, column=j).value = cell_value.value
-    pass
+                row=row, column=column).value = cell_value.value
 
 
-def move_pdf(src, dst):
-    """Takes src file and moves to dst"""
-    shutil.copy(f'{src}.pdf', dst)
+def find_max(worksheet):
+    rows = worksheet.max_row
+    columns = worksheet.max_column
+    return rows, columns
+
+
+def close_workbooks(workbook1, workbook2, workbook3, workbook4):
+    workbook = [workbook1, workbook2, workbook3, workbook4]
+    for book in workbook:
+        book.close()
 
 
 class FilePath:
@@ -136,30 +147,21 @@ def main():
         temp_csm_file
     )
 
-    # Load destination workbook and worksheets that will be written to.
-    # mk32_template = load_workbook(mk32_template_folder_path)
-
     # Using threads to load workbooks
     with concurrent.futures.ThreadPoolExecutor() as executer:
 
-        mk32_template_object = executer.submit(
+        mk32_template = executer.submit(
             load_workbook, path_dict['mk32_template_folder_path']
-        )
-        csm_object = executer.submit(
+        ).result()
+        csm_workbook = executer.submit(
             load_workbook, temp_csm_file
-        )
-        mk30_object = executer.submit(
+        ).result()
+        mk30_workbook = executer.submit(
             load_workbook, mk30.file_selection()
-        )
-        maxim_object = executer.submit(
+        ).result()
+        maxim_workbook = executer.submit(
             load_workbook, maxim.file_selection()
-        )
-
-    # Threads return a thread object, pull result (openpyxl object) into a new variable
-    mk32_template = mk32_template_object.result()
-    csm_workbook = csm_object.result()
-    mk30_workbook = mk30_object.result()
-    maxim_workbook = maxim_object.result()
+        ).result()
 
     # Load all destination worksheets
     csm_mk32_worksheet = mk32_template['CSM']
@@ -172,45 +174,48 @@ def main():
     maxim_wb_worksheet = maxim_workbook.worksheets[0]
 
     # Find max rows and columns
-    csm_max_row = csm_wb_worksheet.max_row
-    csm_max_col = csm_wb_worksheet.max_column
-
-    mk30_max_row = mk30_wb_worksheet.max_row
-    mk30_max_col = mk30_wb_worksheet.max_column
-
-    maxim_max_row = maxim_wb_worksheet.max_row
-    maxim_max_col = maxim_wb_worksheet.max_column
+    csm_max_row, csm_max_col = find_max(csm_wb_worksheet)
+    mk30_max_row, mk30_max_col = find_max(mk30_wb_worksheet)
+    maxim_max_row, maxim_max_col = find_max(maxim_wb_worksheet)
 
     # Lists created to feed thread map()
-    orig_wb_list = [csm_wb_worksheet, mk30_wb_worksheet, maxim_wb_worksheet]
-    dest_wb_list = [csm_mk32_worksheet,
-                    mk30_mk32_worksheet, maxim_mk32_worksheet]
-    max_row_list = [csm_max_row, mk30_max_row, maxim_max_row]
-    max_col_list = [csm_max_col, mk30_max_col, maxim_max_col]
-    report_type_list = ['csm', 'mk30', 'maxim']
+    list_dict = {
+        'orig_wb_list': [csm_wb_worksheet, mk30_wb_worksheet, maxim_wb_worksheet],
+        'dest_wb_list': [csm_mk32_worksheet, mk30_mk32_worksheet, maxim_mk32_worksheet],
+        'max_row_list': [csm_max_row, mk30_max_row, maxim_max_row],
+        'max_col_list': [csm_max_col, mk30_max_col, maxim_max_col],
+        'report_type_list': ['csm', 'mk30', 'maxim']
+    }
 
     # Using threads to transfer data
     with concurrent.futures.ThreadPoolExecutor() as executer:
-        executer.map(transfer_data, orig_wb_list, dest_wb_list,
-                     max_row_list, max_col_list, report_type_list)
+        executer.map(transfer_data,
+                     list_dict['orig_wb_list'],
+                     list_dict['dest_wb_list'],
+                     list_dict['max_row_list'],
+                     list_dict['max_col_list'],
+                     list_dict['report_type_list']
+                     )
 
     mk30_mk32_worksheet.cell(
         row=1, column=3).value = todays_date.strftime("%m/%d/%Y")
     mk30_mk32_worksheet.cell(
         row=2, column=3).value = get_monday(todays_date).strftime("%m/%d/%Y")
 
-    mk32_template.close()
-    csm_workbook.close()
-    mk30_workbook.close()
-    maxim_workbook.close()
+    close_workbooks(
+        mk32_template,
+        csm_workbook,
+        mk30_workbook,
+        maxim_workbook
+    )
 
     os.remove(temp_csm_file)
 
-    # Never save over the template!
+    # ! Never save over the template !
     new_report_name = f'MK32_EDD_EFT Report_{csm.monday_date}'
     new_xl_path = f'{path_dict["report_output_path"]}\\{new_report_name}.xlsx'
     mk32_template.save(new_xl_path)
-    new_report_path = f'{path_dict["report_output_path"]}\\{new_report_name}'
+    new_report_path = f'{path_dict["report_output_path"]}\\{new_report_name}.pdf'
 
     '''Create a PDF of the PIF and Percentages worksheets.'''
     try:
@@ -229,9 +234,8 @@ def main():
                                               xl_quality_standard, True, True)
 
     except Exception as e:
-        gui.alert(f'''The PDF was unable to be created.
-        Reason: {e}''')
-        # gui.alert(e)
+        gui.alert(f'The PDF was unable to be created.')
+        logger.error(e)
 
     finally:
         report_wb.Close(SaveChanges=False)
@@ -240,10 +244,10 @@ def main():
         report_wb = None
         xl_wb = None
 
-    logger.info('PROGRAM FINISHED.')
-
     # A copy of the PDF must be distributed via FDS.
-    move_pdf(new_report_path, path_dict['fds_path'])
+    shutil.copy(new_report_path, path_dict['fds_path'])
+
+    logger.info('PROGRAM FINISHED.')
 
 
 if __name__ == '__main__':
