@@ -24,7 +24,7 @@ path_dict = {
 }
 
 temp_csm_file = Path(
-    f"{path_dict['csm_temp_folder_path']}\{path_dict['temp_csm_file_name']}")
+    f"{path_dict['csm_temp_folder_path']}\\{path_dict['temp_csm_file_name']}")
 
 
 LOG_FORMAT = "%(levelname)s:%(asctime)s:%(message)s"
@@ -98,7 +98,9 @@ class FilePath:
         self.report_type = report_type.upper()
 
     def __repr__(self):
-        return f"FilePath(folder_path=r'{self.folder_path}', todays_date={self.todays_date}, report_type={self.report_type})"
+        return f"FilePath(folder_path=r'{self.folder_path}', " \
+               f"todays_date={self.todays_date}, " \
+               f"report_type={self.report_type})"
 
     def __str__(self):
         return f'''{self.report_type} report: 
@@ -125,7 +127,7 @@ class FilePath:
     def file_selection(self):
         """Creates a list of all files meeting criteria. Returns first index."""
         files = glob(
-            f'{self.folder_path}\{self.report_type}*{self.date_string()}*')
+            f'{self.folder_path}\\{self.report_type}*{self.date_string()}*')
         return files[0]
 
 
@@ -238,10 +240,7 @@ def main():
 
     finally:
         report_wb.Close(SaveChanges=False)
-        xl_wb.Quit
-
-        report_wb = None
-        xl_wb = None
+        # xl_wb.Quit
 
     # A copy of the PDF must be distributed via FDS.
     shutil.copy(new_report_path, path_dict['fds_path'])
