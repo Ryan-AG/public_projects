@@ -6,6 +6,18 @@ import wmi
 from random import choice
 from glob import glob
 import sqlite3
+import logging
+
+LOG_FORMAT = "%(levelname)s:%(asctime)s:%(message)s"
+logging.basicConfig(
+    filename="basil_log.log",
+    level=logging.DEBUG,
+    format=LOG_FORMAT,
+)
+logger = logging.getLogger()
+
+# TODO: Include logging to log which photos are sent each day.
+# TODO: Either set this script to execute each day or have it run and use current time to trigger the script. Probably the first option...
 
 connection = sqlite3.connect('used_photos.db')
 cursor = connection.cursor()
@@ -29,11 +41,6 @@ c = wmi.WMI()  # opens wmi connection
 
 
 def open_slack(file_path: Path):
-    """Attempts to open Slack.
-
-    Args:
-        file_path (Path): Path to the slack.exe file.
-    """
     try:
         os.startfile(slack_path)
     except Exception as e:
@@ -100,15 +107,16 @@ def main():
         gui.press('u')
     gui.typewrite(image_choice)
     gui.press('enter')
+    gui.typewrite(':party-corgi: Good morning from Basil :party-corgi:')
 
     sleep(3)
 
-    # gui.press('enter')
+    gui.press('enter')
 
     sleep(0.5)
 
     terminate_slack()
-
+    logger.info(f'Uploaded image: {image_choice}')
     update_db(image_choice)
 
     cursor.close()

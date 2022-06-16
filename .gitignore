@@ -10,3 +10,7 @@ basil_bot/maintain.py
 .idea/public_projects.iml
 .idea/vcs.xml
 geckodriver.log
+basil_bot/basil_log.log
+basil_bot/used_photos.db
+basil_bot/used_photos.db
+basil_bot/used_photos.db
