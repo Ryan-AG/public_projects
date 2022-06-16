@@ -2,3 +2,11 @@
 .DS_Store
 mk32_test.log
 sandy.py
+basil_bot/maintain.py
+.idea/desktop.ini
+.idea/inspectionProfiles/profiles_settings.xml
+.idea/misc.xml
+.idea/modules.xml
+.idea/public_projects.iml
+.idea/vcs.xml
+geckodriver.log
