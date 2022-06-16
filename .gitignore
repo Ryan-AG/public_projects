@@ -11,6 +11,5 @@ basil_bot/maintain.py
 .idea/vcs.xml
 geckodriver.log
 basil_bot/basil_log.log
-basil_bot/used_photos.db
-basil_bot/used_photos.db
-basil_bot/used_photos.db
+used_photos.db
+
