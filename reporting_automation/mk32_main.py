@@ -1,11 +1,12 @@
 import os
+import string
 import sys
 import shutil
 import logging
 import pandas as pd
 from glob import glob
 from pathlib import Path
-from win32com import client
+# from win32com import client
 from openpyxl import load_workbook
 from datetime import date, timedelta
 import pyautogui as gui
@@ -36,7 +37,7 @@ logging.basicConfig(
 logger = logging.getLogger()
 
 
-def get_monday(todays_date: object):
+def get_monday(todays_date: object) -> object:
     """Finds the date for Monday of the current week."""
 
     day_index = todays_date.weekday()
@@ -45,7 +46,7 @@ def get_monday(todays_date: object):
     return monday
 
 
-def convert_csm_to_temp(path_to_file, destination_path):
+def convert_csm_to_temp(path_to_file, destination_path) -> None:
     """Converts csv file to xlsx for simplicity later"""
 
     if not os.path.exists(path_dict['csm_temp_folder_path']):
@@ -61,7 +62,7 @@ def convert_csm_to_temp(path_to_file, destination_path):
         logger.debug("CSM file was successfully converted")
 
 
-def transfer_data(original_worksheet, destination_worksheet, max_row, max_col, report):
+def transfer_data(original_worksheet, destination_worksheet, max_row, max_col, report) -> None:
     """Transfers the contents of one worksheet to another"""
 
     # * MK30 transfer must begin at row 8 to avoid clashing with the template
@@ -79,7 +80,7 @@ def find_max(worksheet):
     return rows, columns
 
 
-def close_workbooks(*args):
+def close_workbooks(*args) -> None:
     workbook = [*args]
     for book in workbook:
         book.close()
@@ -210,7 +211,11 @@ def main():
         maxim_workbook
     )
 
-    os.remove(temp_csm_file)
+    if temp_csm_file:
+        try:
+            os.remove(temp_csm_file)
+        except Exception as e:
+            print(f'Could not find temporary file -> {temp_csm_file}')
 
     # ! Never save over the template !
     new_report_name = f'MK32_EDD_EFT Report_{csm.monday_date}'
